@@ -1,28 +1,61 @@
-import React, { useEffect, useRef } from "react"
+import React, { useEffect, useRef, useState } from "react"
 import { createProgram, createShader } from "./shaderFunctions"
 
 interface ShaderCanvasProps {
-    fragShader: string
-    vertShader: string
+  fragShader: string
+  vertShader: string
 }
 
 const ShaderCanvas = (props: ShaderCanvasProps) => {
-  const canvasRef = useRef<HTMLCanvasElement|null>(null)
+  const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvas = <canvas ref={canvasRef} />
+  const [previousTime, setPreviousTime] = useState(0)
 
-  useEffect(() => {
+  const loop = (time: number) => {
+    // const elapesdTime = time - previousTime
+    // setPreviousTime(time)
+    // update()
+    render(time)
+    requestAnimationFrame(loop)
+  }
+
+  const setCanvasSize = (canvas: HTMLCanvasElement) => {
+    canvas.height = window.innerHeight
+    canvas.width = window.innerWidth
+  }
+
+  const compileShader = (gl: WebGLRenderingContext): WebGLProgram => {
+    const fragShader = createShader(gl, gl?.FRAGMENT_SHADER, props.fragShader)
+    const vertShader = createShader(gl, gl?.VERTEX_SHADER, props.vertShader)
+    return createProgram(gl, vertShader, fragShader)
+  }
+
+  const setUTime = (gl: WebGLRenderingContext, program: WebGLProgram, time: number): void => {
+    const timeUniformLocation = gl.getUniformLocation(program, "u_time")
+    gl.uniform1f(timeUniformLocation, time / 1000)
+  }
+
+  const setUResolution = (gl: WebGLRenderingContext, program: WebGLProgram): void => {
+    const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
+    gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height)
+  }
+
+  const setUniforms = (gl: WebGLRenderingContext, program: WebGLProgram, time: number) => {
+    setUTime(gl, program, time)
+    setUResolution(gl, program)
+  }
+
+  const render = (time: number) => {
     if (canvasRef.current !== null) {
-      canvasRef.current.width = window.innerWidth
-      canvasRef.current.height = window.innerHeight
+      setCanvasSize(canvasRef.current)
+
       const gl = canvasRef.current.getContext("webgl")
       if (gl === null) {
-          throw Error('Could not get canvas context')
+        throw Error('Could not get canvas context')
       }
-      const fragShader = createShader(gl, gl?.FRAGMENT_SHADER, props.fragShader)
-      const vertShader = createShader(gl, gl?.VERTEX_SHADER, props.vertShader)
-      const program = createProgram(gl, vertShader, fragShader)
 
-      
+      const program = compileShader(gl)
+
       const positionAttributeLocation = gl.getAttribLocation(program, 'a_position')
       const positionBuffer = gl.createBuffer()
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
@@ -43,8 +76,7 @@ const ShaderCanvas = (props: ShaderCanvasProps) => {
       gl.enableVertexAttribArray(positionAttributeLocation)
       gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer)
 
-      const resolutionUniformLocation = gl.getUniformLocation(program, "u_resolution")
-      gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+      setUniforms(gl, program, time)
 
       const size = 2
       const type = gl.FLOAT
@@ -56,7 +88,11 @@ const ShaderCanvas = (props: ShaderCanvasProps) => {
       const count = 6
       gl.drawArrays(primitiveType, offset, count)
     }
-  })
+  }
+
+  useEffect(() => {
+    requestAnimationFrame(loop)
+  }, [])
 
   return (
     <div>
