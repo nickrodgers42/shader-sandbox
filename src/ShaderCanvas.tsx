@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react"
+import React, { useEffect, useRef } from "react"
 import { createProgram, createShader } from "./shaderFunctions"
 
 interface ShaderCanvasProps {
@@ -6,10 +6,20 @@ interface ShaderCanvasProps {
   vertShader: string
 }
 
+interface Coordinate {
+  x: number
+  y: number
+}
+
 const ShaderCanvas = (props: ShaderCanvasProps) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null)
   const canvas = <canvas ref={canvasRef} />
-  const [previousTime, setPreviousTime] = useState(0)
+  // const [previousTime, setPreviousTime] = useState(0)
+
+  let mouseCoord: Coordinate = {
+    x: 0,
+    y: 0
+  }
 
   const loop = (time: number) => {
     // const elapesdTime = time - previousTime
@@ -40,10 +50,23 @@ const ShaderCanvas = (props: ShaderCanvasProps) => {
     gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height)
   }
 
+  const mouseEventListener = (canvas: HTMLCanvasElement, event: MouseEvent) => {
+    const rect = canvas.getBoundingClientRect()
+    mouseCoord = {
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top
+    }
+  }
+
+  const setUMouse = (gl: WebGLRenderingContext, program: WebGLProgram): void => {
+    const mouseUniformLocation = gl.getUniformLocation(program, "u_mouse")
+    gl.uniform2f(mouseUniformLocation, mouseCoord.x, mouseCoord.y)
+  }
+
   const setUniforms = (gl: WebGLRenderingContext, program: WebGLProgram, time: number): void => {
     setUTime(gl, program, time)
     setUResolution(gl, program)
-    // TODO: setUMouse()
+    setUMouse(gl, program)
   }
 
   const render = (time: number): void => {
@@ -97,6 +120,11 @@ const ShaderCanvas = (props: ShaderCanvasProps) => {
   }
 
   useEffect(() => {
+    if (canvasRef.current !== null) {
+      canvasRef.current.addEventListener('mousemove',
+        (event: MouseEvent) => mouseEventListener(canvasRef.current!, event)
+      )
+    }
     requestAnimationFrame(loop)
   }, [])
 
