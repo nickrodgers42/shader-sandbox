@@ -12,8 +12,9 @@ export function createShader(gl: WebGLRenderingContext, type: GLenum, source: st
 
     const compileSuccess = gl.getShaderParameter(shader, gl.COMPILE_STATUS)
     if (!compileSuccess) {
+        const errorMsg = gl.getShaderInfoLog(shader)
         gl.deleteShader(shader)
-        throw Error("Could not compile shader")
+        throw Error(errorMsg || "Could not compile shader")
     }
     return shader
 }
